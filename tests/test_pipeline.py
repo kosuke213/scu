@@ -4,8 +4,8 @@ from typing import List
 
 from scu.config import AppConfig, ProcessOrder, WaitMode
 from scu.duplicates import SimpleDuplicateDetector
-from scu.interfaces import CaptureRequest, CaptureResult, CaptureService, InputService, OutputWriter, WaitService
-from scu.output import SessionPathManager
+from scu.interfaces import CaptureRequest, CaptureResult, CaptureService, InputService, WaitService
+from scu.output import FilesystemOutputWriter, SessionPathManager
 from scu.pipeline import Pipeline, SessionContext
 
 
@@ -45,17 +45,6 @@ class RecordingWaitService(WaitService):
         return self.change_result
 
 
-class FilesystemOutputWriter(OutputWriter):
-    def __init__(self, base: Path) -> None:
-        self.base = base
-
-    def write_capture(self, session_dir, index, image_format, image_bytes, jpeg_quality):  # type: ignore[override]
-        session_dir.mkdir(parents=True, exist_ok=True)
-        path = session_dir / f"page_{index:04d}{image_format.extension}"
-        path.write_bytes(image_bytes)
-        return path
-
-
 def test_pipeline_observes_key_first_order(tmp_path: Path) -> None:
     calls: List[RecordedCall] = []
     config = AppConfig(output_dir=tmp_path, process_order=ProcessOrder.KEY_FIRST)
@@ -63,7 +52,7 @@ def test_pipeline_observes_key_first_order(tmp_path: Path) -> None:
         capture_service=FakeCaptureService(),
         input_service=RecordingInputService(calls),
         wait_service=RecordingWaitService(calls),
-        output_writer=FilesystemOutputWriter(tmp_path / "session"),
+        output_writer=FilesystemOutputWriter(),
     )
 
     manager = SessionPathManager(config)
@@ -84,7 +73,7 @@ def test_pipeline_change_detection_warning(tmp_path: Path) -> None:
         capture_service=FakeCaptureService(),
         input_service=RecordingInputService(calls),
         wait_service=RecordingWaitService(calls, change_result=False),
-        output_writer=FilesystemOutputWriter(tmp_path / "session"),
+        output_writer=FilesystemOutputWriter(),
     )
     manager = SessionPathManager(config)
     manager.prepare_session_dir(session_name="sess")

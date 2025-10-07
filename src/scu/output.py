@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from .config import AppConfig, ImageFormat
+from .interfaces import OutputWriter
 
 
 class SessionPathManager:
@@ -35,12 +36,26 @@ class SessionPathManager:
 
     def write_capture(self, index: int, image_format: ImageFormat, image_bytes: bytes, jpeg_quality: int = 90) -> Path:
         path = self.capture_path(index, image_format)
-        if image_format is ImageFormat.JPG:
-            path.write_bytes(image_bytes)
-        else:
-            path.write_bytes(image_bytes)
+        path.write_bytes(image_bytes)
         return path
 
     @staticmethod
     def hash_bytes(data: bytes) -> str:
         return hashlib.sha1(data).hexdigest()
+
+
+class FilesystemOutputWriter(OutputWriter):
+    """Persist captures to disk within the prepared session directory."""
+
+    def write_capture(
+        self,
+        session_dir: Path,
+        index: int,
+        image_format: ImageFormat,
+        image_bytes: bytes,
+        jpeg_quality: int,
+    ) -> Path:
+        session_dir.mkdir(parents=True, exist_ok=True)
+        path = session_dir / f"page_{index:04d}{image_format.extension}"
+        path.write_bytes(image_bytes)
+        return path
